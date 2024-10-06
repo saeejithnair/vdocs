@@ -9,18 +9,32 @@ function TranscriptViewer({ transcript, isLoading, error, currentTime, onSlideCl
   const transcriptRef = useRef(null);
   const slidesRef = useRef(null);
   const [showSlides, setShowSlides] = useState(true);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const lastTimeRef = useRef(currentTime);
 
   useEffect(() => {
-    if (transcript && slidesRef.current) {
-      const currentSlide = transcript.slides.find(slide => slide.timestamp <= currentTime);
+    if (transcript && slidesRef.current && autoScroll) {
+      const currentSlide = transcript.slides.reduce((prev, curr) => 
+        Math.abs(curr.timestamp - currentTime) < Math.abs(prev.timestamp - currentTime) ? curr : prev
+      );
+
       if (currentSlide) {
         const slideElement = slidesRef.current.querySelector(`[data-timestamp="${currentSlide.timestamp}"]`);
         if (slideElement) {
-          slideElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          const isForwardSeek = currentTime > lastTimeRef.current;
+          slideElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: isForwardSeek ? 'nearest' : 'center'
+          });
         }
       }
     }
-  }, [currentTime, transcript]);
+    lastTimeRef.current = currentTime;
+  }, [currentTime, transcript, autoScroll]);
+
+  const handleManualScroll = () => {
+    setAutoScroll(false);
+  };
 
   if (isLoading) {
     return (
@@ -54,12 +68,22 @@ function TranscriptViewer({ transcript, isLoading, error, currentTime, onSlideCl
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
         <Typography variant="h5">Transcript</Typography>
-        <FormControlLabel
-          control={<Switch checked={showSlides} onChange={(e) => setShowSlides(e.target.checked)} />}
-          label="Show Slides"
-        />
+        <Box>
+          <FormControlLabel
+            control={<Switch checked={showSlides} onChange={(e) => setShowSlides(e.target.checked)} />}
+            label="Show Slides"
+          />
+          <FormControlLabel
+            control={<Switch checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} />}
+            label="Auto Scroll"
+          />
+        </Box>
       </Box>
-      <Box ref={transcriptRef} sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+      <Box 
+        ref={transcriptRef} 
+        sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}
+        onScroll={handleManualScroll}
+      >
         <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>
           {transcript.text}
         </Typography>
