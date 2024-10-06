@@ -1,11 +1,20 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import YouTube from 'react-youtube';
 
-function VideoPlayer({ url }) {
+function VideoPlayer({ url, onTimeUpdate, setPlayerRef }) {
+  const playerRef = useRef(null);
+
+  useEffect(() => {
+    if (playerRef.current) {
+      setPlayerRef(playerRef.current);
+    }
+  }, [setPlayerRef]);
+
   if (!url) {
     return (
-      <Box sx={{ bgcolor: '#f0f0f0', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ bgcolor: '#f0f0f0', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Typography variant="h5">Enter a YouTube URL to start</Typography>
       </Box>
     );
@@ -13,11 +22,33 @@ function VideoPlayer({ url }) {
 
   // Extract video ID from URL
   const videoId = url.split('v=')[1];
-  const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+
+  const opts = {
+    height: '100%',
+    width: '100%',
+    playerVars: {
+      autoplay: 1,
+    },
+  };
+
+  const onReady = (event) => {
+    playerRef.current = event.target;
+    setPlayerRef(event.target);
+  };
 
   return (
-    <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>
-      <iframe
+    <Box sx={{ position: 'relative', paddingTop: '56.25%', height: '0', overflow: 'hidden' }}>
+      <YouTube
+        videoId={videoId}
+        opts={opts}
+        onReady={onReady}
+        onStateChange={(event) => {
+          if (event.data === YouTube.PlayerState.PLAYING) {
+            setInterval(() => {
+              onTimeUpdate(event.target.getCurrentTime());
+            }, 1000);
+          }
+        }}
         style={{
           position: 'absolute',
           top: 0,
@@ -25,11 +56,6 @@ function VideoPlayer({ url }) {
           width: '100%',
           height: '100%',
         }}
-        src={embedUrl}
-        frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        title="Embedded YouTube video"
       />
     </Box>
   );
